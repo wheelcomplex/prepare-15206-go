@@ -265,23 +265,6 @@ TEXT runtime·settls(SB),NOSPLIT,$8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVQ	mib+0(FP), DI		// arg 1 - name
-	MOVL	miblen+8(FP), SI		// arg 2 - namelen
-	MOVQ	out+16(FP), DX		// arg 3 - oldp
-	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
-	MOVQ	dst+32(FP), R8		// arg 5 - newp
-	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
-	MOVQ	$202, AX		// sys___sysctl
-	SYSCALL
-	JCC 4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+48(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+48(FP)
-	RET
-
 TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVL	$331, AX		// sys_sched_yield
 	SYSCALL
@@ -331,4 +314,23 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ	$1, DX		// FD_CLOEXEC
 	MOVL	$92, AX		// fcntl
 	SYSCALL
+	RET
+
+// int32 runtime.getpid(void);
+TEXT runtime·getpid(SB),NOSPLIT,$0
+	MOVL	$20, AX		// syscall entry, sys_getpid = 20
+	SYSCALL
+	MOVL AX, ret+0(FP)
+	RET
+
+// int32 runtime·cpuset_getaffinity(int level, int which, int id, int size, cpuset_t *mask);
+TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0
+	MOVQ level+0(FP), DI	// arg 1
+	MOVQ which+8(FP), SI	// arg 2
+	MOVQ id+16(FP), DX	// arg 3
+	MOVQ size+24(FP), R10	// arg 4
+	MOVQ buf+32(FP), R8	// arg 5
+	MOVL $487, AX		// syscall entry, sys_cpuset_getaffinity = 487
+	SYSCALL
+	MOVL AX, ret+40(FP)
 	RET

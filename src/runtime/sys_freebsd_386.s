@@ -322,26 +322,6 @@ TEXT runtime·i386_set_ldt(SB),NOSPLIT,$16
 	INT	$3
 	RET
 
-TEXT runtime·sysctl(SB),NOSPLIT,$28
-	LEAL	mib+0(FP), SI
-	LEAL	4(SP), DI
-	CLD
-	MOVSL				// arg 1 - name
-	MOVSL				// arg 2 - namelen
-	MOVSL				// arg 3 - oldp
-	MOVSL				// arg 4 - oldlenp
-	MOVSL				// arg 5 - newp
-	MOVSL				// arg 6 - newlen
-	MOVL	$202, AX		// sys___sysctl
-	INT	$0x80
-	JAE	4(PC)
-	NEGL	AX
-	MOVL	AX, ret+24(FP)
-	RET
-	MOVL	$0, AX
-	MOVL	AX, ret+24(FP)
-	RET
-
 TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVL	$331, AX		// sys_sched_yield
 	INT	$0x80
@@ -390,6 +370,24 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	RET
+
+// int32 runtime·getpid(void);
+TEXT runtime·getpid(SB),NOSPLIT,$0
+	MOVL	$20, AX		// syscall entry, sys_getpid = 20
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	MOVL	AX, ret+0(FP)
+	RET
+
+// int32 runtime·cpuset_getaffinity(int level, int which, int id_low, int id_high, int size, cpuset_t *mask);
+TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0
+	MOVL $487, AX	// syscall entry, sys_cpuset_getaffinity = 487
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 GLOBL runtime·tlsoffset(SB),NOPTR,$4

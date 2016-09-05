@@ -26,7 +26,6 @@
 #define SYS_setitimer (SYS_BASE + 83)
 #define SYS_fcntl (SYS_BASE + 92)
 #define SYS_getrlimit (SYS_BASE + 194)
-#define SYS___sysctl (SYS_BASE + 202)
 #define SYS_nanosleep (SYS_BASE + 240)
 #define SYS_clock_gettime (SYS_BASE + 232)
 #define SYS_sched_yield (SYS_BASE + 331)
@@ -40,6 +39,7 @@
 #define SYS__umtx_op (SYS_BASE + 454)
 #define SYS_thr_new (SYS_BASE + 455)
 #define SYS_mmap (SYS_BASE + 477) 
+#define SYS_cpuset_getaffinity (SYS_BASE + 487)
 	
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R0
@@ -308,20 +308,6 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SWI $0
 	RET
 
-TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVW mib+0(FP), R0	// arg 1 - name
-	MOVW miblen+4(FP), R1	// arg 2 - namelen
-	MOVW out+8(FP), R2	// arg 3 - old
-	MOVW size+12(FP), R3	// arg 4 - oldlenp
-	// arg 5 (newp) and arg 6 (newlen) are passed on stack
-	ADD $20, R13
-	MOVW $SYS___sysctl, R7
-	SWI $0
-	SUB.CS $0, R0, R0
-	SUB $20, R13
-	MOVW	R0, ret+24(FP)
-	RET
-
 TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVW $SYS_sched_yield, R7
 	SWI $0
@@ -375,4 +361,26 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
 // TODO(minux): this only supports ARMv6K+.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	WORD $0xee1d0f70 // mrc p15, 0, r0, c13, c0, 3
+	RET
+
+// int32 runtime.getpid(void);
+TEXT runtime·getpid(SB),NOSPLIT,$0
+	MOVW $SYS_getpid, R7
+	SWI $0
+	RSB.CS $0, R0
+	MOVW	R0, ret+0(FP)
+	RET
+
+// int32 runtime·cpuset_getaffinity(int level, int which, int id_low, int id_high, int size, cpuset_t *mask);
+TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0
+	MOVW level+0(FP), R0
+	MOVW which+4(FP), R1
+	MOVW id+8(FP), R2
+	MOVW size+12(FP), R3
+	ADD $20, R13 // arg 5 and 6 is passed on stack
+	MOVW $SYS_cpuset_getaffinity, R7
+	SWI $0
+	RSB.CS $0, R0
+	SUB $20, R13
+	MOVW	R0, ret+24(FP)
 	RET

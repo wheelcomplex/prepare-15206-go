@@ -27,9 +27,6 @@ func sigprocmask(how int32, new, old *sigset)
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
-
-//go:noescape
 func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig int32)
 func raiseproc(sig int32)
@@ -39,24 +36,7 @@ func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
 
 func osyield()
 
-// From FreeBSD's <sys/sysctl.h>
-const (
-	_CTL_HW  = 6
-	_HW_NCPU = 3
-)
-
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
-
-func getncpu() int32 {
-	mib := [2]uint32{_CTL_HW, _HW_NCPU}
-	out := uint32(0)
-	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return int32(out)
-	}
-	return 1
-}
 
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See Linux implementation
