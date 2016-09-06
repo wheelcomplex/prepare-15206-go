@@ -372,15 +372,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	NEGL	AX
 	RET
 
-// int32 runtime·getpid(void);
-TEXT runtime·getpid(SB),NOSPLIT,$0
-	MOVL	$20, AX		// syscall entry, sys_getpid = 20
-	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX
-	MOVL	AX, ret+0(FP)
-	RET
-
 // int32 runtime·cpuset_getaffinity(int level, int which, int id_low, int id_high, int size, cpuset_t *mask);
 TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0
 	MOVL $487, AX	// syscall entry, sys_cpuset_getaffinity = 487

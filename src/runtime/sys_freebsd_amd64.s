@@ -316,13 +316,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SYSCALL
 	RET
 
-// int32 runtime.getpid(void);
-TEXT runtime·getpid(SB),NOSPLIT,$0
-	MOVL	$20, AX		// syscall entry, sys_getpid = 20
-	SYSCALL
-	MOVL AX, ret+0(FP)
-	RET
-
 // int32 runtime·cpuset_getaffinity(int level, int which, int id, int size, cpuset_t *mask);
 TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0
 	MOVQ level+0(FP), DI	// arg 1

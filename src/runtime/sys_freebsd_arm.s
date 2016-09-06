@@ -363,14 +363,6 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	WORD $0xee1d0f70 // mrc p15, 0, r0, c13, c0, 3
 	RET
 
-// int32 runtime.getpid(void);
-TEXT runtime·getpid(SB),NOSPLIT,$0
-	MOVW $SYS_getpid, R7
-	SWI $0
-	RSB.CS $0, R0
-	MOVW	R0, ret+0(FP)
-	RET
-
 // int32 runtime·cpuset_getaffinity(int level, int which, int id_low, int id_high, int size, cpuset_t *mask);
 TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0
 	MOVW level+0(FP), R0

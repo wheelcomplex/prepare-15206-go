@@ -6,10 +6,9 @@ package runtime
 
 func getncpu() int32 {
 	var mask [_CPU_SETSIZE_MAX]uintptr
-	var pid int = int(getpid())
 	var size int
 	for size = _CPU_SETSIZE_MAX; size >= _CPU_SETSIZE_MIN; size -= 8 {
-		if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, pid, pid>>32, size, &mask[0]) == 0 {
+		if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, _CPU_CURRENT_PID, _CPU_CURRENT_PID, size, &mask[0]) == 0 {
 			break
 		}
 	}
@@ -30,6 +29,6 @@ func getncpu() int32 {
 	return n
 }
 
-// id_t is 64 bit, pid_t is 32 bit, id_high always be zero
+// id_t is 64 bit, pass in two 32 bit
 //go:noescape
 func cpuset_getaffinity(level int, which int, id_low int, id_high int, len int, mask *uintptr) int32

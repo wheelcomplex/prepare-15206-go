@@ -5,17 +5,14 @@
 package runtime
 
 // From FreeBSD's <sys/cpuset.h> <sys/_cpuset.h> and <sys/syscall.h>,
-// https://svnweb.freebsd.org/base/head/sys/sys/_cpuset.h?view=log for CPU_MAXSIZE,
-// https://svnweb.freebsd.org/base/head/sys/kern/syscalls.master?view=log for syscall entry,
+// https://svnweb.freebsd.org/base/head/sys/sys/_cpuset.h?view=log CPU_MAXSIZE,
+// https://svnweb.freebsd.org/base/head/sys/kern/syscalls.master?view=log syscall entry,
 // First SMP awarded FreeBSD/armv6 release 10.1 (https://en.wikipedia.org/wiki/FreeBSD),
-// Befor Revision 270222(FreeBSD 8/9), _CPU_SETSIZE = 16 and after that(FreeBSD 10/11/12) _CPU_SETSIZE = 32
+// On FreeBSD 10/11/12 _CPU_SETSIZE is 32, on FreeBSD 8/9 _CPU_SETSIZE is 16
 const (
 	_CPU_LEVEL_WHICH = 3    // Actual mask/id for which.
 	_CPU_WHICH_PID   = 2    // Specifies a process id.
-	_CPU_SETSIZE_MAX = 1024 // Max cpu setsize, 8192 cpus supported in the future
-	_CPU_SETSIZE_MIN = 16   // Min cpu setsize
+	_CPU_SETSIZE_MAX = 1024 // Max 8192 cpus supported.
+	_CPU_SETSIZE_MIN = 16   // Min cpu setsize.
+	_CPU_CURRENT_PID = -1   // Current process id.
 )
-
-// size of pid_t is 32 bit in amd64/386/arm
-//go:noescape
-func getpid() int32

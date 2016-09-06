@@ -28,28 +28,47 @@ func BSDNumCPU() {
 		os.Exit(0)
 	}
 
+	_, err := exec.LookPath("cpuset")
+	if err != nil {
+		// can not test without cpuset command
+		fmt.Println("OK")
+		os.Exit(0)
+	}
+
 	// return OK when only one cpu avaible
-	cmdncpu := getcpus(-1)
-	if cmdncpu <= 1 {
+	cpulist := getcpulist(-1)
+	cmdncpu := len(cpulist)
+	if cmdncpu == 1 {
 		fmt.Println("OK")
 		os.Exit(0)
 	}
 
 	// launch limited proc with env
-	err := os.Setenv(CHILDENV, "YES")
+	err = os.Setenv(CHILDENV, "YES")
 	if err != nil {
 		fmt.Printf("Setenv %s failed: %s\n", CHILDENV, err.Error())
 		os.Exit(1)
 	}
 
-	// check n-1 cpus
+	// check n cpus
 	list := ""
+	for n := 0; n < cmdncpu; n++ {
+		if list == "" {
+			list += cpulist[n]
+		} else {
+			list += "," + cpulist[n]
+		}
+	}
+	checkncpu(list, cmdncpu)
+
+	// check n-1 cpus
+	list = ""
 	cmdncpu--
 	for n := 0; n < cmdncpu; n++ {
 		if list == "" {
-			list += strconv.Itoa(n)
+			list += cpulist[n]
 		} else {
-			list += "," + strconv.Itoa(n)
+			list += "," + cpulist[n]
 		}
 	}
 	checkncpu(list, cmdncpu)
@@ -57,14 +76,14 @@ func BSDNumCPU() {
 	fmt.Println("OK")
 }
 
-// testprog should print runtime.NumCPU() as execpted.
+// child proc should print "n"
 func checkncpu(list string, n int) {
 	args := []string{"-l", list}
 	args = append(args, os.Args...)
 	cmd := exec.Command("cpuset", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("launch cpuset failed: %s\n", err.Error())
+		fmt.Printf("launch cpuset %s failed: %s\n", args, err.Error())
 		os.Exit(1)
 	}
 	ret, err := strconv.Atoi(string(output))
@@ -79,7 +98,7 @@ func checkncpu(list string, n int) {
 }
 
 // get number of cpus avaible for this pid
-func getcpus(pid int) int {
+func getcpulist(pid int) (cpulist []string) {
 	if pid == -1 {
 		pid = syscall.Getpid()
 	}
@@ -96,14 +115,17 @@ func getcpus(pid int) int {
 		fmt.Printf("unknow cpuset output: %s\n", output)
 		os.Exit(1)
 	}
-	if len(output) <= pos+1 {
-		fmt.Printf("invalid cpuset output: %s\n", output)
+	list := bytes.Split(output[pos+1:], []byte(","))
+	if len(list) == 0 {
+		fmt.Printf("error: empty list in cpuset output %s\n", output)
 		os.Exit(1)
 	}
-	ncpu := len(bytes.Split(output[pos+1:], []byte(",")))
-	if ncpu == 0 {
-		fmt.Printf("error: cpuset return zero form %s\n", output)
-		os.Exit(1)
+	for _, val := range list {
+		cpuindex := string(bytes.TrimSpace(val))
+		if len(cpuindex) == 0 {
+			continue
+		}
+		cpulist = append(cpulist, cpuindex)
 	}
-	return ncpu
+	return
 }

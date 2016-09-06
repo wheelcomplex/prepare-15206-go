@@ -6,10 +6,9 @@ package runtime
 
 func getncpu() int32 {
 	var mask [_CPU_SETSIZE_MAX]uintptr
-	var pid int = int(getpid())
 	var size int
 	for size = _CPU_SETSIZE_MAX; size >= _CPU_SETSIZE_MIN; size -= 8 {
-		if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, pid, size, &mask[0]) == 0 {
+		if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, _CPU_CURRENT_PID, size, &mask[0]) == 0 {
 			break
 		}
 	}
