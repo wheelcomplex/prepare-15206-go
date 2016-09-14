@@ -182,7 +182,7 @@ func gmvc(f, t *gc.Node) bool {
 // hard part is conversions.
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+		fmt.Printf("gmove %L -> %L\n", f, t)
 	}
 
 	ft := int(gc.Simsimtype(f.Type))
@@ -253,7 +253,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// otherwise handle and return.
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
 
 	// integer copy and truncate
 	case gc.TINT8<<16 | gc.TINT8,

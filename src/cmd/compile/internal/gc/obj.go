@@ -68,7 +68,7 @@ func dumpobj1(outfile string, mode int) {
 	}
 
 	printheader := func() {
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
 		if buildid != "" {
 			fmt.Fprintf(bout, "build id %q\n", buildid)
 		}
@@ -130,6 +130,7 @@ func dumpobj1(outfile string, mode int) {
 	externs := len(externdcl)
 
 	dumpglobls()
+	dumpptabs()
 	dumptypestructs()
 
 	// Dump extra globals.
@@ -161,6 +162,35 @@ func dumpobj1(outfile string, mode int) {
 	}
 
 	bout.Close()
+}
+
+func dumpptabs() {
+	if !Ctxt.Flag_dynlink || localpkg.Name != "main" {
+		return
+	}
+	for _, exportn := range exportlist {
+		s := exportn.Sym
+		n := s.Def
+		if n == nil {
+			continue
+		}
+		if n.Op != ONAME {
+			continue
+		}
+		if !exportname(s.Name) {
+			continue
+		}
+		if s.Pkg.Name != "main" {
+			continue
+		}
+		if n.Type.Etype == TFUNC && n.Class == PFUNC {
+			// function
+			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type})
+		} else {
+			// variable
+			ptabs = append(ptabs, ptabEntry{s: s, t: typPtr(s.Def.Type)})
+		}
+	}
 }
 
 func dumpglobls() {
@@ -403,7 +433,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 	case OADDR:
 		if nr.Left.Op != ONAME {
-			Fatalf("gdata ADDR left op %s", nr.Left.Op)
+			Fatalf("gdata ADDR left op %v", nr.Left.Op)
 		}
 		to := nr.Left
 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)

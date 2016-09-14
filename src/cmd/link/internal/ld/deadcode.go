@@ -223,7 +223,7 @@ func (d *deadcodepass) init() {
 
 	if SysArch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
-		if d.ctxt.Goarm == 5 {
+		if obj.GOARM == 5 {
 			names = append(names, "_sfloat")
 		}
 		names = append(names, "runtime.read_tls_fallback")
@@ -241,7 +241,7 @@ func (d *deadcodepass) init() {
 		// In a normal binary, start at main.main and the init
 		// functions and mark what is reachable from there.
 		names = append(names, *flagEntrySymbol)
-		if *FlagLinkshared && Buildmode == BuildmodeExe {
+		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
 			names = append(names, "main.main", "main.init")
 		}
 		for _, name := range markextra {

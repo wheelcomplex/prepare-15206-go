@@ -184,7 +184,7 @@ func walkstmt(n *Node) *Node {
 		ORECOVER,
 		OGETG:
 		if n.Typecheck == 0 {
-			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+			Fatalf("missing typecheck: %+v", n)
 		}
 		wascopy := n.Op == OCOPY
 		init := n.Ninit
@@ -199,7 +199,7 @@ func walkstmt(n *Node) *Node {
 	// the value received.
 	case ORECV:
 		if n.Typecheck == 0 {
-			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+			Fatalf("missing typecheck: %+v", n)
 		}
 		init := n.Ninit
 		n.Ninit.Set(nil)
@@ -366,7 +366,7 @@ func walkstmt(n *Node) *Node {
 	}
 
 	if n.Op == ONAME {
-		Fatalf("walkstmt ended up with name: %v", Nconv(n, FmtSign))
+		Fatalf("walkstmt ended up with name: %+v", n)
 	}
 	return n
 }
@@ -500,7 +500,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	}
 
 	if n.Typecheck != 1 {
-		Fatalf("missed typecheck: %v\n", Nconv(n, FmtSign))
+		Fatalf("missed typecheck: %+v", n)
 	}
 
 	if n.Op == ONAME && n.Class == PAUTOHEAP {
@@ -515,7 +515,7 @@ opswitch:
 	switch n.Op {
 	default:
 		Dump("walk", n)
-		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, FmtShort|FmtSign))
+		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
 	case OTYPE,
 		ONONAME,
@@ -1745,7 +1745,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", hconv(nln, FmtSign), op, hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+		Yyerror("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1875,7 +1875,7 @@ func dumpnodetypes(l []*Node, what string) string {
 		if s != "" {
 			s += ", "
 		}
-		s += Tconv(r.Type, 0)
+		s += r.Type.String()
 	}
 	if s == "" {
 		s = fmt.Sprintf("[no arguments %s]", what)
@@ -2217,7 +2217,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 func applywritebarrier(n *Node) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
 		if Debug_wb > 1 {
-			Warnl(n.Lineno, "marking %v for barrier", Nconv(n.Left, 0))
+			Warnl(n.Lineno, "marking %v for barrier", n.Left)
 		}
 		n.Op = OASWB
 		return n
@@ -3951,7 +3951,7 @@ func usemethod(n *Node) {
 			return
 		}
 	}
-	if Tconv(res0.Type, 0) != "reflect.Method" {
+	if res0.Type.String() != "reflect.Method" {
 		return
 	}
 

@@ -560,14 +560,6 @@ func substAny(t *Type, types *[]*Type) *Type {
 		params := substAny(t.Params(), types)
 		results := substAny(t.Results(), types)
 		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
-			// Note that this code has to be aware of the
-			// representation underlying Recvs/Results/Params.
-			if recvs == t.Recvs() {
-				recvs = recvs.Copy()
-			}
-			if results == t.Results() {
-				results = results.Copy()
-			}
 			t = t.Copy()
 			t.FuncType().Receiver = recvs
 			t.FuncType().Results = results
@@ -1037,7 +1029,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		}
 
 	default:
-		e := fmt.Sprintf("Do not know how to compare %s with %s", t, x)
+		e := fmt.Sprintf("Do not know how to compare %v with %v", t, x)
 		panic(e)
 	}
 

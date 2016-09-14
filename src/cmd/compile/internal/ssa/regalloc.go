@@ -502,6 +502,8 @@ func (s *regAllocState) init(f *Func) {
 			// we do need to be careful, but that carefulness is hidden
 			// in the rewrite rules so we always have a free register
 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
+		case "s390x":
+			// nothing to do, R10 & R11 already reserved
 		default:
 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
 		}
@@ -698,12 +700,8 @@ func (s *regAllocState) regalloc(f *Func) {
 		// Initialize liveSet and uses fields for this block.
 		// Walk backwards through the block doing liveness analysis.
 		liveSet.clear()
-		d := int32(len(b.Values))
-		if b.Kind == BlockCall || b.Kind == BlockDefer {
-			d += unlikelyDistance
-		}
 		for _, e := range s.live[b.ID] {
-			s.addUse(e.ID, d+e.dist) // pseudo-uses from beyond end of block
+			s.addUse(e.ID, int32(len(b.Values))+e.dist) // pseudo-uses from beyond end of block
 			liveSet.add(e.ID)
 		}
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
@@ -1189,8 +1187,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Before we pick a register for the output value, allow input registers
 			// to be deallocated. We do this here so that the output can use the
 			// same register as a dying input.
-			s.nospill = 0
-			s.advanceUses(v) // frees any registers holding args that are no longer live
+			if !opcodeTable[v.Op].resultNotInArgs {
+				s.nospill = 0
+				s.advanceUses(v) // frees any registers holding args that are no longer live
+			}
 
 			// Dump any registers which will be clobbered
 			s.freeRegs(regspec.clobbers)
@@ -1262,6 +1262,12 @@ func (s *regAllocState) regalloc(f *Func) {
 						s.assignReg(r, v, v)
 					}
 				}
+			}
+
+			// deallocate dead args, if we have not done so
+			if opcodeTable[v.Op].resultNotInArgs {
+				s.nospill = 0
+				s.advanceUses(v) // frees any registers holding args that are no longer live
 			}
 
 			// Issue the Value itself.
@@ -2192,14 +2198,8 @@ func (s *regAllocState) computeLive() {
 			// Add len(b.Values) to adjust from end-of-block distance
 			// to beginning-of-block distance.
 			live.clear()
-			d := int32(len(b.Values))
-			if b.Kind == BlockCall || b.Kind == BlockDefer {
-				// Because we keep no values in registers across a call,
-				// make every use past a call appear very far away.
-				d += unlikelyDistance
-			}
 			for _, e := range s.live[b.ID] {
-				live.set(e.ID, e.dist+d)
+				live.set(e.ID, e.dist+int32(len(b.Values)))
 			}
 
 			// Mark control value as live
@@ -2217,6 +2217,12 @@ func (s *regAllocState) computeLive() {
 					// save phi ops for later
 					phis = append(phis, v)
 					continue
+				}
+				if opcodeTable[v.Op].call {
+					c := live.contents()
+					for i := range c {
+						c[i].val += unlikelyDistance
+					}
 				}
 				for _, a := range v.Args {
 					if s.values[a.ID].needReg {

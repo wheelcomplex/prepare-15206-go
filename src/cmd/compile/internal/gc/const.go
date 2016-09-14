@@ -556,7 +556,7 @@ func overflow(v Val, t *Type) {
 	}
 
 	if doesoverflow(v, t) {
-		Yyerror("constant %s overflows %v", vconv(v, 0), t)
+		Yyerror("constant %v overflows %v", v, t)
 	}
 }
 
@@ -1386,7 +1386,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 		Yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
-		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, FmtSign))
+		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
 
 	case CTBOOL:
 		t1 := Types[TBOOL]
@@ -1595,7 +1595,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		var i int64
 		switch n.Val().Ctype() {
 		default:
-			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
+			Fatalf("convconst ctype=%d %L", n.Val().Ctype(), t)
 
 		case CTINT, CTRUNE:
 			i = n.Int64()
@@ -1632,7 +1632,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	Fatalf("convconst %v constant", Tconv(t, FmtLong))
+	Fatalf("convconst %L constant", t)
 }
 
 // complex multiply v *= rv

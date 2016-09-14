@@ -316,7 +316,7 @@ const (
 // An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
 	Name      string
-	Type      int16
+	Type      SymKind
 	Version   int16
 	Dupok     bool
 	Cfunc     bool
@@ -371,12 +371,20 @@ type Pcln struct {
 	Lastindex   int
 }
 
-// LSym.type
+// A SymKind describes the kind of memory represented by a symbol.
+type SymKind int16
+
+// Defined SymKind values.
+//
+// TODO(rsc): Give idiomatic Go names.
+// TODO(rsc): Reduce the number of symbol types in the object files.
+//go:generate stringer -type=SymKind
 const (
-	Sxxx = iota
+	Sxxx SymKind = iota
 	STEXT
 	SELFRXSECT
 
+	// Read-only sections.
 	STYPE
 	SSTRING
 	SGOSTRING
@@ -386,6 +394,11 @@ const (
 	SRODATA
 	SFUNCTAB
 
+	SELFROSECT
+	SMACHOPLT
+
+	// Read-only sections with relocations.
+	//
 	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
 	// When linking a shared object, some conceptually "read only" types need to
 	// be written to by relocations and putting them in a section called
@@ -405,12 +418,13 @@ const (
 	SRODATARELRO
 	SFUNCTABRELRO
 
+	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
 	STYPELINK
 	SITABLINK
 	SSYMTAB
 	SPCLNTAB
-	SELFROSECT
-	SMACHOPLT
+
+	// Writable sections.
 	SELFSECT
 	SMACHO
 	SMACHOGOT
@@ -434,11 +448,38 @@ const (
 	SHOSTOBJ
 	SDWARFSECT
 	SDWARFINFO
-	SSUB       = 1 << 8
-	SMASK      = SSUB - 1
-	SHIDDEN    = 1 << 9
-	SCONTAINER = 1 << 10 // has a sub-symbol
+	SSUB       = SymKind(1 << 8)
+	SMASK      = SymKind(SSUB - 1)
+	SHIDDEN    = SymKind(1 << 9)
+	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
 )
+
+// ReadOnly are the symbol kinds that form read-only sections. In some
+// cases, if they will require relocations, they are transformed into
+// rel-ro sections using RelROMap.
+var ReadOnly = []SymKind{
+	STYPE,
+	SSTRING,
+	SGOSTRING,
+	SGOSTRINGHDR,
+	SGOFUNC,
+	SGCBITS,
+	SRODATA,
+	SFUNCTAB,
+}
+
+// RelROMap describes the transformation of read-only symbols to rel-ro
+// symbols.
+var RelROMap = map[SymKind]SymKind{
+	STYPE:        STYPERELRO,
+	SSTRING:      SSTRINGRELRO,
+	SGOSTRING:    SGOSTRINGRELRO,
+	SGOSTRINGHDR: SGOSTRINGHDRRELRO,
+	SGOFUNC:      SGOFUNCRELRO,
+	SGCBITS:      SGCBITSRELRO,
+	SRODATA:      SRODATARELRO,
+	SFUNCTAB:     SFUNCTABRELRO,
+}
 
 type Reloc struct {
 	Off  int32
@@ -625,8 +666,7 @@ const (
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Goarm         int32
-	Headtype      int
+	Headtype      HeadType
 	Arch          *LinkArch
 	Debugasm      int32
 	Debugvlog     int32
@@ -725,9 +765,11 @@ type LinkArch struct {
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
 }
 
-/* executable header types */
+// HeadType is the executable header type.
+type HeadType uint8
+
 const (
-	Hunknown = 0 + iota
+	Hunknown HeadType = iota
 	Hdarwin
 	Hdragonfly
 	Hfreebsd
@@ -738,7 +780,66 @@ const (
 	Hplan9
 	Hsolaris
 	Hwindows
+	Hwindowsgui
 )
+
+func (h *HeadType) Set(s string) error {
+	switch s {
+	case "darwin":
+		*h = Hdarwin
+	case "dragonfly":
+		*h = Hdragonfly
+	case "freebsd":
+		*h = Hfreebsd
+	case "linux", "android":
+		*h = Hlinux
+	case "nacl":
+		*h = Hnacl
+	case "netbsd":
+		*h = Hnetbsd
+	case "openbsd":
+		*h = Hopenbsd
+	case "plan9":
+		*h = Hplan9
+	case "solaris":
+		*h = Hsolaris
+	case "windows":
+		*h = Hwindows
+	case "windowsgui":
+		*h = Hwindowsgui
+	default:
+		return fmt.Errorf("invalid headtype: %q", s)
+	}
+	return nil
+}
+
+func (h *HeadType) String() string {
+	switch *h {
+	case Hdarwin:
+		return "darwin"
+	case Hdragonfly:
+		return "dragonfly"
+	case Hfreebsd:
+		return "freebsd"
+	case Hlinux:
+		return "linux"
+	case Hnacl:
+		return "nacl"
+	case Hnetbsd:
+		return "netbsd"
+	case Hopenbsd:
+		return "openbsd"
+	case Hplan9:
+		return "plan9"
+	case Hsolaris:
+		return "solaris"
+	case Hwindows:
+		return "windows"
+	case Hwindowsgui:
+		return "windowsgui"
+	}
+	return fmt.Sprintf("HeadType(%d)", *h)
+}
 
 // AsmBuf is a simple buffer to assemble variable-length x86 instructions into.
 type AsmBuf struct {

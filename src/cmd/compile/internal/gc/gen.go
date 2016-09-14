@@ -716,7 +716,7 @@ func gen(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("gen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+		Fatalf("gen: unknown op %+S", n)
 
 	case OCASE,
 		OFALL,
@@ -1208,7 +1208,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
 		if wb && Simtype[t.Etype] == Tptr && t != itable {
 			if ptrType != nil {
-				Fatalf("componentgen_wb %v", Tconv(nl.Type, 0))
+				Fatalf("componentgen_wb %v", nl.Type)
 			}
 			ptrType = t
 			ptrOffset = offset

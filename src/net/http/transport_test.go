@@ -3369,6 +3369,15 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 }
 
 func TestTransportEventTraceRealDNS(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		// Skip this test in short mode (the default for
+		// all.bash), in case the user is using a shady/ISP
+		// DNS server hijacking queries.
+		// See issues 16732, 16716.
+		// Our builders use 8.8.8.8, though, which correctly
+		// returns NXDOMAIN, so still run this test there.
+		t.Skip("skipping in short mode")
+	}
 	defer afterTest(t)
 	tr := &Transport{}
 	defer tr.CloseIdleConnections()
@@ -3617,6 +3626,76 @@ func TestTransportReturnsPeekError(t *testing.T) {
 	_, err := tr.RoundTrip(httptest.NewRequest("GET", "http://fake.tld/", nil))
 	if err != errValue {
 		t.Errorf("error = %#v; want %v", err, errValue)
+	}
+}
+
+// Issue 13835: international domain names should work
+func TestTransportIDNA_h1(t *testing.T) { testTransportIDNA(t, h1Mode) }
+func TestTransportIDNA_h2(t *testing.T) { testTransportIDNA(t, h2Mode) }
+func testTransportIDNA(t *testing.T, h2 bool) {
+	defer afterTest(t)
+
+	const uniDomain = "гофер.го"
+	const punyDomain = "xn--c1ae0ajs.xn--c1aw"
+
+	var port string
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		want := punyDomain + ":" + port
+		if r.Host != want {
+			t.Errorf("Host header = %q; want %q", r.Host, want)
+		}
+		if h2 {
+			if r.TLS == nil {
+				t.Errorf("r.TLS == nil")
+			} else if r.TLS.ServerName != punyDomain {
+				t.Errorf("TLS.ServerName = %q; want %q", r.TLS.ServerName, punyDomain)
+			}
+		}
+		w.Header().Set("Hit-Handler", "1")
+	}))
+	defer cst.close()
+
+	ip, port, err := net.SplitHostPort(cst.ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Install a fake DNS server.
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+		if host != punyDomain {
+			t.Errorf("got DNS host lookup for %q; want %q", host, punyDomain)
+			return nil, nil
+		}
+		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
+	})
+
+	req, _ := NewRequest("GET", cst.scheme()+"://"+uniDomain+":"+port, nil)
+	trace := &httptrace.ClientTrace{
+		GetConn: func(hostPort string) {
+			want := net.JoinHostPort(punyDomain, port)
+			if hostPort != want {
+				t.Errorf("getting conn for %q; want %q", hostPort, want)
+			}
+		},
+		DNSStart: func(e httptrace.DNSStartInfo) {
+			if e.Host != punyDomain {
+				t.Errorf("DNSStart Host = %q; want %q", e.Host, punyDomain)
+			}
+		},
+	}
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
+
+	res, err := cst.tr.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.Header.Get("Hit-Handler") != "1" {
+		out, err := httputil.DumpResponse(res, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Errorf("Response body wasn't from Handler. Got:\n%s\n", out)
 	}
 }
 

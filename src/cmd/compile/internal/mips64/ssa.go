@@ -660,7 +660,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				ssa.OpMIPS64MOVWload, ssa.OpMIPS64MOVWUload, ssa.OpMIPS64MOVVload,
 				ssa.OpMIPS64MOVFload, ssa.OpMIPS64MOVDload,
 				ssa.OpMIPS64MOVBstore, ssa.OpMIPS64MOVHstore, ssa.OpMIPS64MOVWstore, ssa.OpMIPS64MOVVstore,
-				ssa.OpMIPS64MOVFstore, ssa.OpMIPS64MOVDstore:
+				ssa.OpMIPS64MOVFstore, ssa.OpMIPS64MOVDstore,
+				ssa.OpMIPS64MOVBstorezero, ssa.OpMIPS64MOVHstorezero, ssa.OpMIPS64MOVWstorezero, ssa.OpMIPS64MOVVstorezero:
 				// arg0 is ptr, auxint is offset
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -764,7 +765,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
+	case ssa.BlockPlain, ssa.BlockCheck:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH

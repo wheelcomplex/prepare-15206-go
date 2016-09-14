@@ -226,7 +226,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64,
 		'Z',
 		'm':
 		l := 4
-		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
+		if Headtype == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
 			Lputb(uint32(addr >> 32))
 			l = 8
 		}
@@ -386,7 +386,7 @@ func (ctxt *Link) symtab() {
 		symtyperel = s
 	}
 
-	groupSym := func(name string, t int16) *Symbol {
+	groupSym := func(name string, t obj.SymKind) *Symbol {
 		s := Linklookup(ctxt, name, 0)
 		s.Type = t
 		s.Size = 0

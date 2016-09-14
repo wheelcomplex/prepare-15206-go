@@ -47,7 +47,7 @@ func Main() {
 
 func linkarchinit() {
 	ld.SysArch = sys.ArchAMD64
-	if obj.Getgoarch() == "amd64p32" {
+	if obj.GOARCH == "amd64p32" {
 		ld.SysArch = sys.ArchAMD64P32
 	}
 
@@ -73,6 +73,7 @@ func linkarchinit() {
 	ld.Thearch.Append16 = ld.Append16l
 	ld.Thearch.Append32 = ld.Append32l
 	ld.Thearch.Append64 = ld.Append64l
+	ld.Thearch.TLSIEtoLE = tlsIEtoLE
 
 	ld.Thearch.Linuxdynld = "/lib64/ld-linux-x86-64.so.2"
 	ld.Thearch.Freebsddynld = "/libexec/ld-elf.so.1"
@@ -93,13 +94,13 @@ func archinit(ctxt *ld.Link) {
 		ld.Linkmode = ld.LinkExternal
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
 			ld.Linkmode = ld.LinkInternal
 		}
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
 		}
 
 	case obj.Hdarwin,
@@ -110,13 +111,14 @@ func archinit(ctxt *ld.Link) {
 		obj.Hnetbsd,
 		obj.Hopenbsd,
 		obj.Hsolaris,
-		obj.Hwindows:
+		obj.Hwindows,
+		obj.Hwindowsgui:
 		break
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
+		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
 	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32 + 8
@@ -179,7 +181,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows: /* PE executable */
+	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
 		ld.Peinit(ctxt)
 
 		ld.HEADR = ld.PEFILEHEADR

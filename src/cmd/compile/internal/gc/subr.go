@@ -59,7 +59,7 @@ func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
 func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func Flusherrors() {
-	bstdout.Flush()
+	Ctxt.Bso.Flush()
 	if len(errors) == 0 {
 		return
 	}
@@ -155,7 +155,7 @@ func Fatalf(fmt_ string, args ...interface{}) {
 	fmt.Printf("\n")
 
 	// If this is a released compiler version, ask for a bug report.
-	if strings.HasPrefix(obj.Getgoversion(), "release") {
+	if strings.HasPrefix(obj.Version, "release") {
 		fmt.Printf("\n")
 		fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
 		fmt.Printf("https://golang.org/issue/new\n")
@@ -810,11 +810,13 @@ func assignop(src *Type, dst *Type, why *string) Op {
 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 			} else if have != nil && have.Sym == missing.Sym {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
+					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 			} else if ptr != 0 {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 			} else if have != nil {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
+					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 			} else {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 			}
@@ -1013,7 +1015,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, FmtLong), t, context(), why)
+		Yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
@@ -1038,6 +1040,12 @@ func Is64(t *Type) bool {
 	return false
 }
 
+// IsMethod reports whether n is a method.
+// n must be a function or a method.
+func (n *Node) IsMethod() bool {
+	return n.Type.Recv() != nil
+}
+
 // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
 // n must be a slice expression. max is nil if n is a simple slice expression.
 func (n *Node) SliceBounds() (low, high, max *Node) {
@@ -1056,7 +1064,7 @@ func (n *Node) SliceBounds() (low, high, max *Node) {
 		}
 		return n.Right.Left, n.Right.Right.Left, n.Right.Right.Right
 	}
-	Fatalf("SliceBounds op %s: %v", n.Op, n)
+	Fatalf("SliceBounds op %v: %v", n.Op, n)
 	return nil, nil, nil
 }
 
@@ -1066,7 +1074,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 	switch n.Op {
 	case OSLICE, OSLICEARR, OSLICESTR:
 		if max != nil {
-			Fatalf("SetSliceBounds %s given three bounds", n.Op)
+			Fatalf("SetSliceBounds %v given three bounds", n.Op)
 		}
 		if n.Right == nil {
 			n.Right = Nod(OKEY, low, high)
@@ -1084,7 +1092,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 		n.Right.Right.Right = max
 		return
 	}
-	Fatalf("SetSliceBounds op %s: %v", n.Op, n)
+	Fatalf("SetSliceBounds op %v: %v", n.Op, n)
 }
 
 // IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
@@ -1139,10 +1147,11 @@ func syslook(name string) *Node {
 // typehash computes a hash value for type t to use in type switch
 // statements.
 func typehash(t *Type) uint32 {
-	// Tconv already contains all the necessary logic to generate
-	// a representation that completely describes the type, so using
+	// t.tconv(FmtLeft | FmtUnsigned) already contains all the necessary logic
+	// to generate a representation that completely describes the type, so using
 	// it here avoids duplicating that code.
-	p := Tconv(t, FmtLeft|FmtUnsigned)
+	// See the comments in exprSwitch.checkDupCases.
+	p := t.tconv(FmtLeft | FmtUnsigned)
 
 	// Using MD5 is overkill, but reduces accidental collisions.
 	h := md5.Sum([]byte(p))

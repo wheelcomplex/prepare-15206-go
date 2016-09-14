@@ -46,7 +46,7 @@ func Main() {
 }
 
 func linkarchinit() {
-	if obj.Getgoarch() == "mips64le" {
+	if obj.GOARCH == "mips64le" {
 		ld.SysArch = sys.ArchMIPS64LE
 	} else {
 		ld.SysArch = sys.ArchMIPS64
@@ -99,22 +99,22 @@ func archinit(ctxt *ld.Link) {
 		ld.Linkmode = ld.LinkInternal
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
 			ld.Linkmode = ld.LinkInternal
 		}
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
 		}
 
 	case obj.Hlinux:
 		break
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
+		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
 	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32
